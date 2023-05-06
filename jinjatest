@@ -1,0 +1,80 @@
+#!/usr/bin/env python3
+#
+#  A program that will take an input file and render it as a Jinja2 template to stdout
+#  so you can see what it looks like.  My primary use case was to be able to quickly
+#  and easily try variations of whitespace trimming.
+#
+#  Written by Sean Reifschneider, 2023
+#  https://github.com/linsomniac/jinjatest
+#  CC0 1.0 Universal, see LICENSE file for more information.
+
+import jinja2
+import os
+import argparse
+import json
+from typing import List, Dict
+
+
+def expand_json(env: Dict[str, str], data: List[str]) -> Dict[str, str]:
+    for x in data:
+        if x.startswith('@'):
+            with open(x[1:], 'r') as fp:
+                d = json.load(fp)
+        else:
+            d = json.loads(x)
+        env.update(d)
+        print(d)
+    return env
+
+
+def expand_vars(vars: List[str]) -> Dict[str, str]:
+    ret = {}
+    for var in vars:
+        k, v = var.split("=")
+        ret[k] = v
+    return ret
+
+
+def main(args) -> None:
+    data = args.template.read()
+
+    jinja_env = jinja2.Environment()
+    jinja_env.filters["basename"] = os.path.basename
+    jinja_env.filters["dirname"] = os.path.dirname
+    jinja_env.filters["abspath"] = os.path.abspath
+
+    env = expand_vars(args.set)
+    env = expand_json(env, args.json)
+    out = jinja_env.from_string(data).render(env)
+    print(out)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        prog="jinjatest",
+        description="Jinja template a file to see what it looks like after templating, "
+        "for example to do quick turnaround of testing whitespace trimming and the like.",
+        add_help=False,
+    )
+    parser.add_argument(
+        "--json",
+        action="append",
+        help="The supplied argument is included in the jinja environment.  If it starts "
+        "with '@', the argument is interpreted as a file name to load json data from.",
+    )
+    parser.add_argument(
+        "--set",
+        action="append",
+        help="The argument to this should be in the form 'name=value', and sets a variable for the template to apply.",
+    )
+    parser.add_argument(
+        "template",
+        type=argparse.FileType("r"),
+        help="The template file to read",
+    )
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+    args = parse_args()
+    main(args)
