@@ -16,6 +16,7 @@ from typing import List, Dict
 
 
 def expand_json(env: Dict[str, str], data: List[str]) -> Dict[str, str]:
+    print(f'Data: {data}')
     for x in data:
         if x.startswith('@'):
             with open(x[1:], 'r') as fp:
@@ -33,20 +34,6 @@ def expand_vars(vars: List[str]) -> Dict[str, str]:
         k, v = var.split("=")
         ret[k] = v
     return ret
-
-
-def main(args) -> None:
-    data = args.template.read()
-
-    jinja_env = jinja2.Environment()
-    jinja_env.filters["basename"] = os.path.basename
-    jinja_env.filters["dirname"] = os.path.dirname
-    jinja_env.filters["abspath"] = os.path.abspath
-
-    env = expand_vars(args.set)
-    env = expand_json(env, args.json)
-    out = jinja_env.from_string(data).render(env)
-    print(out)
 
 
 def parse_args() -> argparse.Namespace:
@@ -73,6 +60,23 @@ def parse_args() -> argparse.Namespace:
         help="The template file to read",
     )
     return parser.parse_args()
+
+
+def main(args) -> None:
+    data = args.template.read()
+
+    jinja_env = jinja2.Environment()
+    jinja_env.filters["basename"] = os.path.basename
+    jinja_env.filters["dirname"] = os.path.dirname
+    jinja_env.filters["abspath"] = os.path.abspath
+
+    env = {}
+    if args.set is not None:
+        env = expand_vars(args.set)
+    if args.json is not None:
+        env = expand_json(env, args.json)
+    out = jinja_env.from_string(data).render(env)
+    print(out)
 
 
 if __name__ == "__main__":
